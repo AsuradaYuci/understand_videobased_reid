@@ -25,10 +25,10 @@ class ResNet50TP(nn.Module):  # 定义时间池化网络模型
         self.classifier = nn.Linear(self.feat_dim, num_classes)  # 分类器
         # nn.Linear(x,y)一种线性变换y = Ax + b
 
-    def forward(self, x):  # 前向传播函数定义,输入为x,5维的tensor (batch_size,channels,width,height,seq_len)
+    def forward(self, x):  # 前向传播函数定义,输入为x,5维的tensor (batch_size,seq_len，channels,width,height,)
         b = x.size(0)  # batch_size
-        t = x.size(1)  # channels
-        x = x.view(b*t, x.size(2), x.size(3), x.size(4))  # b*t=行人的身份数
+        t = x.size(1)  # seq_len
+        x = x.view(b*t, x.size(2), x.size(3), x.size(4))  # b*t= 32 × 4 =128 图片总数
         # view()会将原有数据重新分配为一个新的张量
         x = self.base(x)  # x输入到基本网络中
         x = F.avg_pool2d(x, x.size()[2:])  # avg_pool2d(x, x.size(2), x.size(3), x.size(4))
