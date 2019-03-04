@@ -69,17 +69,17 @@ class ResNet50TA(nn.Module):  # 时间注意力模型
         self.attention_tconv = nn.Conv1d(self.middle_dim, 1, 3, padding=1)
 
     def forward(self, x):
-        b = x.size(0)
-        t = x.size(1)
-        x = x.view(b*t, x.size(2), x.size(3), x.size(4))
-        x = self.base(x)  # 将图片输入到模型中
-        a = F.relu(self.attention_conv(x))  # 激励函数
-        a = a.view(b, t, self.middle_dim)  # 将原有数据重新分配为一个新的张量  (b,t,256)
-        a = a.permute(0, 2, 1)  # 调整数据的维度,将1,2维数据互换
-        a = F.relu(self.attention_tconv(a))  # 激励函数
-        a = a.view(b, t)  # 将原有数据重新分配为一个新的张量  (b,t)
-        x = F.avg_pool2d(x, x.size()[2:])  # avg_pool2d(x, x.size(2), x.size(3), x.size(4)) 2d的平均池化
-        # a = 注意力分散
+        b = x.size(0)  # b = 32
+        t = x.size(1)  # t = 4
+        x = x.view(b*t, x.size(2), x.size(3), x.size(4))  # 128x3x224x112
+        x = self.base(x)  # 将图片输入到模型中  128x2048x7x4
+        a = F.relu(self.attention_conv(x))  # 激励函数 128x256x1x1
+        a = a.view(b, t, self.middle_dim)  # 将原有数据重新分配为一个新的张量  (b,t,256) => 32x4x256
+        a = a.permute(0, 2, 1)  # 调整数据的维度,将1,2维数据互换  32x256x4
+        a = F.relu(self.attention_tconv(a))  # 激励函数 32x1x4
+        a = a.view(b, t)  # 将原有数据重新分配为一个新的张量  (b,t) => 32x4
+        x = F.avg_pool2d(x, x.size()[2:])  # avg_pool2d(x, x.size(3), x.size(4)) 2d的平均池化128x2048x1x1 
+        # a = 注意力分数
         if self. att_gen == 'softmax':
             a = F.softmax(a, dim=1)  # dim = 1,在维度1计算softmax
         elif self.att_gen == 'sigmoid':
@@ -87,16 +87,16 @@ class ResNet50TA(nn.Module):  # 时间注意力模型
             a = F.normalize(a, p=1, dim=1)  # p =1 标准公式中的指数值, dim = 1 在维度一进行归一化操作
         else: 
             raise KeyError("Unsupported attention generation function: {}".format(self.att_gen))
-        x = x.view(b, t, -1)  # 将x数据重新进行分配
-        a = torch.unsqueeze(a, -1)  # 在a所在维度上增加1  (b,t,1)
-        a = a.expand(b, t, self.feat_dim)  # 指定单个维度扩大为更大的尺寸,(b,t,2048)
-        att_x = torch.mul(x, a)  # 用标量值a乘以输入x的每个元素，并返回一个新的结果张量。
-        att_x = torch.sum(att_x, 1)  # 返回输入张量给定维度上每行的和。返回1列数
+        x = x.view(b, t, -1)  # 将x数据重新进行分配 32x4x2048
+        a = torch.unsqueeze(a, -1)  # 在a所在维度上增加1  (b,t,1) 32x4x1
+        a = a.expand(b, t, self.feat_dim)  # 指定单个维度扩大为更大的尺寸,(b,t,2048) 32x4x2048
+        att_x = torch.mul(x, a)  # 用标量值a乘以输入x的每个元素，并返回一个新的结果张量。32x4x2048
+        att_x = torch.sum(att_x, 1)  # 返回输入张量给定维度上每行的和。返回1列数  32x2048
         
-        f = att_x.view(b, self.feat_dim)  # 将att_x数据重新进行分配,(b,2048)
+        f = att_x.view(b, self.feat_dim)  # 将att_x数据重新进行分配,(b,2048)  32x2048
         if not self.training:
             return f
-        y = self.classifier(f)  # 线性输出,根据特征向量f分类
+        y = self.classifier(f)  # 线性输出,根据特征向量f分类  32x625
 
         if self.loss == {'xent'}:
             return y
