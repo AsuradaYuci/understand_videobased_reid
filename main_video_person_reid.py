@@ -184,7 +184,7 @@ def main():
         model = nn.DataParallel(model).cuda()  # 多GPU训练
         # DataParallel是torch.nn下的一个类，需要制定的参数是module（可以多gpu运行的类函数）和input（数据集）
 
-    if args.evaluate:
+    if args.evaluate:  # 这里的evaluate没有意义，应该添加代码导入保存的checkpoint，再test
         print("Evaluate only")  # 进行评估
         test(model, queryloader, galleryloader, args.pool, use_gpu)
         return
@@ -267,7 +267,7 @@ def test(model, queryloader, galleryloader, pool, use_gpu, ranks=[1, 5, 10, 20])
         # volatile=True的节点不会求导，即使requires_grad=True，也不会进行反向传播，对于不需要反向传播的情景(inference，测试推断)，
         # 该参数可以实现一定速度的提升，并节省一半的显存，因为其不需要保存梯度
 
-        b, n, s, c, h, w = imgs.size()  # b=1, n=视频片段的数目, s=16
+        b, n, s, c, h, w = imgs.size()  # b=1, n=batchs, s=图片的长度
         assert(b == 1)  # 断言函数
         imgs = imgs.view(b*n, s, c, h, w)
         features = model(imgs)  # 喂给模型图片，获得特征
